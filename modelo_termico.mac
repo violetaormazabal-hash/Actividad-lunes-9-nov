@@ -1,0 +1,70 @@
+! Unidad 3 - Clases 3 y 5: demostracion termica APDL / PyMAPDL
+! Colocar en src/modelo_termico.mac para seguir el ejemplo de la clase 14.
+! Sistema coherente de unidades: N, mm, MPa, grados C; eje X.
+! LINK180: un elemento axial entre dos nodos; pequenas deformaciones.
+! CASO = 0 libre; CASO = 1 restringido; CASO = 2 desplazamiento parcial.
+! Comparaciones teoricas: U2 libre = 0.240 mm;
+! caso 1: sigma = -96 MPa; caso 2: sigma = -48 MPa.
+! No usar estos valores como prueba de plasticidad ni de pandeo.
+FINISH
+/CLEAR,NOSTART
+/PREP7
+L=500
+A_SEC=1400
+E_MOD=200000
+ALPHA=1.2E-5
+T_REF=20
+T_FINAL=60
+DELTA=0.120
+CASO=2
+!
+ET,1,LINK180
+SECTYPE,1,LINK
+SECDATA,A_SEC
+MP,EX,1,E_MOD
+MP,ALPX,1,ALPHA
+TYPE,1
+MAT,1
+SECNUM,1
+!
+N,1,0,0,0
+N,2,L,0,0
+E,1,2
+D,1,ALL,0
+D,2,UY,0
+D,2,UZ,0
+*IF,CASO,EQ,1,THEN
+  D,2,UX,0
+*ELSEIF,CASO,EQ,2,THEN
+  D,2,UX,DELTA
+*ENDIF
+TREF,T_REF
+BF,ALL,TEMP,T_FINAL
+FINISH
+!
+/SOLU
+ANTYPE,STATIC
+NLGEOM,OFF
+SOLVE
+FINISH
+!
+/POST1
+SET,LAST
+ALLSEL,ALL
+ETABLE,NAX,SMISC,1
+*GET,UX2,NODE,2,U,X
+*GET,RX1,NODE,1,RF,FX
+*GET,RX2,NODE,2,RF,FX
+*GET,NFOR,ELEM,1,ETAB,NAX
+SIGMA=NFOR/A_SEC
+!
+PRNSOL,U,COMP
+PRRSOL
+PRETAB,NAX
+! Salida CSV autocontenida para comparar casos.
+*CFOPEN,resultados_termico,txt
+*VWRITE,CASO,UX2,RX1,RX2,NFOR,SIGMA
+('CASO=',F3.0,' UX2_mm=',E14.6,' RX1_N=',E14.6,' RX2_N=',E14.6,' N_N=',E14.6,' SIGMA_MPa=',E14.6)
+*CFCLOS
+! Se conserva /POST1 activo para que mapdl.get_value(...) pueda
+! consultar los desplazamientos despues de mapdl.input(...).
